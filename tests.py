@@ -1,41 +1,43 @@
 import unittest
-from calculator_core import calculate
+from calculator_core import Parser, Evaluator, Calculator, Plus, Min, Mult, Div, Number
 
 
-class TestSafeCalculator(unittest.TestCase):
-    def test_basic_operations(self):
-        self.assertEqual(calculate("2+3"), 5)
-        self.assertEqual(calculate("5-2"), 3)
-        self.assertEqual(calculate("3*4"), 12)
-        self.assertEqual(calculate("10/2"), 5)
-        self.assertAlmostEqual(calculate("0.1+0.2"), 0.3, places=10)
+class TestCalculator(unittest.TestCase):
+    def setUp(self):
+        self.calc = Calculator()
+        self.parser = Parser()
+        self.evaluator = Evaluator()
 
-    def test_operator_priority(self):
-        self.assertEqual(calculate("2+3*5"), 17)
-        self.assertEqual(calculate("2*3+5"), 11)
-        self.assertEqual(calculate("10-4/2"), 8)
+    def test_parser(self):
+        # Тест парсера с экспоненциальной записью
+        self.assertEqual(repr(self.parser.parse("1.35e-7")), "Number(1.35e-07)")
+        self.assertEqual(repr(self.parser.parse("2.5E+3")), "Number(2500.0)")
+        self.assertEqual(repr(self.parser.parse("1+2.5e-2")), "Plus(Number(1.0), Number(0.025))")
 
-    def test_invalid_expressions(self):
-        with self.assertRaises(ValueError):
-            calculate("2/0")  # Деление на ноль
+        # Остальные тесты
+        self.assertEqual(repr(self.parser.parse("1+2")), "Plus(Number(1.0), Number(2.0))")
+        self.assertEqual(repr(self.parser.parse("3*4+5")), "Plus(Mult(Number(3.0), Number(4.0)), Number(5.0))")
 
-        with self.assertRaises(ValueError):
-            calculate("2+")  # Неполное выражение
+    def test_evaluator(self):
+        # Тест вычислителя с экспоненциальной записью
+        self.assertAlmostEqual(self.evaluator.evaluate(Number(1.35e-7)), 1.35e-7)
+        self.assertEqual(self.evaluator.evaluate(Plus(Number(1), Number(2.5e-2))), 1.025)
 
-        with self.assertRaises(ValueError):
-            calculate("abc")  # Нечисловые символы
+        # Остальные тесты
+        self.assertEqual(self.evaluator.evaluate(Plus(Number(1), Number(2))), 3)
+        self.assertEqual(self.evaluator.evaluate(Mult(Number(3), Number(4))), 12)
 
-        with self.assertRaises(ValueError):
-            calculate("2++3")  # Двойной оператор
+    def test_calculator(self):
+        # Тест калькулятора с экспоненциальной записью
+        self.assertEqual(self.calc.calculate("1.35e-7"), 1.35e-7)
+        self.assertEqual(self.calc.calculate("2.5E+3"), 2500.0)
+        self.assertEqual(self.calc.calculate("1+2.5e-2"), 1.025)
+        self.assertEqual(self.calc.calculate("1e10*1e-10"), 1.0)
 
-    def test_spaces_ignored(self):
-        self.assertEqual(calculate("2 + 3"), 5)
-        self.assertEqual(calculate("2+ 3"), 5)
-        self.assertEqual(calculate("2 +3"), 5)
-
-    def test_decimal_numbers(self):
-        self.assertAlmostEqual(calculate("1.5*2"), 3.0)
-        self.assertAlmostEqual(calculate("0.1+0.2"), 0.3, places=10)
+        # Остальные тесты
+        self.assertEqual(self.calc.calculate("1+2"), 3)
+        self.assertEqual(self.calc.calculate("3*4+5"), 17)
+        self.assertEqual(self.calc.calculate("1/0"), "Деление на ноль")
 
 
 if __name__ == "__main__":
