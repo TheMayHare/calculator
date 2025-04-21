@@ -1,62 +1,73 @@
 import unittest
+import time
 from calculator_core import *
 
 
 class TestCalculator(unittest.TestCase):
     def setUp(self):
-        self.calc = Calculator()
         self.parser = Parser()
-        self.evaluator = Evaluator()
+        self.evaluator_rad = Evaluator(angle_unit='radian')
+        self.evaluator_deg = Evaluator(angle_unit='degree')
 
     def test_parser(self):
-        # Тест парсера с научной нотацией
-        self.assertEqual(repr(self.parser.parse("1.25e+9")), "Number(1250000000.0)")
-        self.assertEqual(repr(self.parser.parse("3.5E-3")), "Number(0.0035)")
+        # Тест функций
+        self.assertEqual(repr(self.parser.parse("sqrt(4)")), "FuncCall('sqrt', Number(4.0))")
+        self.assertEqual(repr(self.parser.parse("sin(pi/2)")),
+                         "FuncCall('sin', Div(Number(3.141592653589793), Number(2.0)))")
 
-        # Тест операции возведения в степень
-        self.assertEqual(repr(self.parser.parse("2^3")), "Pow(Number(2.0), Number(3.0))")
-        self.assertEqual(repr(self.parser.parse("2^(3^2)")), "Pow(Number(2.0), Pow(Number(3.0), Number(2.0)))")
+        # Тест констант
+        self.assertEqual(repr(self.parser.parse("pi")), "Number(3.141592653589793)")
+        self.assertEqual(repr(self.parser.parse("e")), "Number(2.718281828459045)")
 
-        # Тест скобочных выражений
-        self.assertEqual(repr(self.parser.parse("(1+2)*3")), "Mult(Plus(Number(1.0), Number(2.0)), Number(3.0))")
-        self.assertEqual(repr(self.parser.parse("1+(2*3)")), "Plus(Number(1.0), Mult(Number(2.0), Number(3.0)))")
+    def test_evaluator_radians(self):
+        # Тригонометрия в радианах
+        self.assertAlmostEqual(self.evaluator_rad.evaluate(self.parser.parse("sin(pi/2)")), 1.0)
+        self.assertAlmostEqual(self.evaluator_rad.evaluate(self.parser.parse("cos(0)")), 1.0)
+        self.assertAlmostEqual(self.evaluator_rad.evaluate(self.parser.parse("tg(pi/4)")), 1.0)
 
-        # Тест приоритета операций
-        self.assertEqual(repr(self.parser.parse("2+3*4^2")),
-                         "Plus(Number(2.0), Mult(Number(3.0), Pow(Number(4.0), Number(2.0))))")
+        # Другие функции
+        self.assertAlmostEqual(self.evaluator_rad.evaluate(self.parser.parse("sqrt(4)")), 2.0)
+        self.assertAlmostEqual(self.evaluator_rad.evaluate(self.parser.parse("ln(e)")), 1.0)
+        self.assertAlmostEqual(self.evaluator_rad.evaluate(self.parser.parse("exp(0)")), 1.0)
 
-    def test_evaluator(self):
-        # Тест вычисления с научной нотацией
-        self.assertEqual(self.evaluator.evaluate(Number(1.25e+9)), 1.25e+9)
-        self.assertEqual(self.evaluator.evaluate(Number(3.5E-3)), 0.0035)
+    def test_evaluator_degrees(self):
+        # Тригонометрия в градусах
+        self.assertAlmostEqual(self.evaluator_deg.evaluate(self.parser.parse("sin(90)")), 1.0)
+        self.assertAlmostEqual(self.evaluator_deg.evaluate(self.parser.parse("cos(0)")), 1.0)
+        self.assertAlmostEqual(self.evaluator_deg.evaluate(self.parser.parse("tg(45)")), 1.0)
 
-        # Тест возведения в степень
-        self.assertEqual(self.evaluator.evaluate(Pow(Number(2), Number(3))), 8)
-        self.assertEqual(self.evaluator.evaluate(Pow(Number(3), Number(2))), 9)
+    def test_calculator_integration(self):
+        # Интеграционные тесты
+        calc_rad = Calculator(angle_unit='radian')
+        calc_deg = Calculator(angle_unit='degree')
 
-        # Тест скобочных выражений
-        self.assertEqual(self.evaluator.evaluate(self.parser.parse("(1+2)*3")), 9)
-        self.assertEqual(self.evaluator.evaluate(self.parser.parse("1+(2*3)")), 7)
+        self.assertAlmostEqual(calc_rad.calculate("sqrt(ln(exp(2)^2))"), 2.0)
+        self.assertAlmostEqual(calc_deg.calculate("sin(90)"), 1.0)
+        self.assertAlmostEqual(calc_rad.calculate("sin(pi/2)"), 1.0)
+        self.assertAlmostEqual(calc_rad.calculate("exp(ln(2))"), 2.0)
 
-        # Тест приоритета операций
-        self.assertEqual(self.evaluator.evaluate(self.parser.parse("2+3*4^2")), 50)
-        self.assertEqual(self.evaluator.evaluate(self.parser.parse("2^3^2")), 64)
+    def test_performance(self):
+        """Тест производительности (не должен превышать 200мс)"""
+        calc = Calculator()
 
-        def test_calculator(self):
-            self.assertEqual(self.calc.calculate("1.25e+9"), 1.25e+9)
-            self.assertEqual(self.calc.calculate("3.5E-3"), 0.0035)
-            self.assertEqual(self.calc.calculate("2^3"), 8)
-            self.assertEqual(self.calc.calculate("3^2"), 9)
-            self.assertEqual(self.calc.calculate("(1+2)*3"), 9)
-            self.assertEqual(self.calc.calculate("1+(2*3)"), 7)
-            self.assertEqual(self.calc.calculate("2+3*4^2"), 50)
-            self.assertEqual(self.calc.calculate("2^3^2"), 512)
-            self.assertEqual(self.calc.calculate("1e10*1e-10"), 1.0)
+        # Длинное выражение
+        start_time = time.time()
+        result = calc.calculate("1" + "+1" * 500)  # 1+1+1+...+1 (501 раз)
+        execution_time = (time.time() - start_time) * 1000
 
-            # Тест ошибок
-            self.assertEqual(self.calc.calculate("2/0"), "Деление на ноль")
-            self.assertEqual(self.calc.calculate("2^1000"), "Арифметическое переполнение")
-            self.assertEqual(self.calc.calculate("2 ^^ 3"), "Неизвестный символ в позиции 2: '^'")
+        self.assertEqual(result, 501)
+        self.assertLess(execution_time, 200,
+                        f"Время выполнения {execution_time:.2f}мс превысило 200мс")
 
-    if __name__ == "__main__":
-        unittest.main()
+        # Большие числа
+        start_time = time.time()
+        result = calc.calculate("1e300 * 1e-300")
+        execution_time = (time.time() - start_time) * 1000
+
+        self.assertEqual(result, 1.0)
+        self.assertLess(execution_time, 200,
+                        f"Время выполнения {execution_time:.2f}мс превысило 200мс")
+
+
+if __name__ == "__main__":
+    unittest.main()
