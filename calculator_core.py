@@ -205,7 +205,7 @@ if __name__ == "__main__":
     calculator = Calculator()
     while True:
         expr = input("Введите выражение (или 'exit' для выхода): ")
-        if expr.lower() == 'exit' or expr == '':
+        if expr.lower() == 'exit':
             break
         result = calculator.calculate(expr)
         print(f"Результат: {result}")
